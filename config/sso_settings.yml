@@ -1,0 +1,15 @@
+default: &default
+
+development:
+  <<: *default
+  identity_provider_secret_key: 'my$ecretK3y'
+
+test:
+  <<: *default
+  identity_provider_secret_key: 'my$ecretK3y'
+
+# Do not keep production secrets in the repository,
+# instead read values from the environment.
+production:
+  <<: *default
+  identity_provider_secret_key: 'my$ecretK3y'
