@@ -2,11 +2,13 @@ module SessionsHelper
 
   def log_in(jwt_token)
     if jwt_token
-      hmac_secret = 'my$ecretK3y'
+      # debugger
+      hmac_secret = Rails.configuration.sso_settings["identity_provider_secret_key"]
       begin
         decoded_token = JWT.decode jwt_token, hmac_secret, true, { :algorithm => 'HS256' }
         payload = decoded_token.select{|decoded_part| decoded_part.key?("data") }.last
         @user_email = payload["data"]["email"] if payload
+        set_session(jwt_token, payload)
       rescue JWT::ExpiredSignature
         # Handle expired token, e.g. logout user or deny access
         puts "Token expired thus redirecting to sso"
@@ -15,7 +17,13 @@ module SessionsHelper
     else
       redirect_to ENV["SSO_URL"] + "?app=" + ENV["MY_URL"]
     end
-    session[:user_id] = user.id
+    # session[:user_id] = user.id
+  end
+
+  def set_session(jwt_token, payload)
+    Redis.current.set("jwt:#{jwt_token}", session.id)
+    @user_email = payload["data"]["email"] if payload
+    session[:user_id] = @user_email
   end
 
   def current_user
