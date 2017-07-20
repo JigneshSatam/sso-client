@@ -2,7 +2,11 @@
 
 # Rails.application.config.session_store :cookie_store, key: '_sso-client-alpha_session'
 
-Rails.application.config.session_store :redis_store, servers: ["redis://localhost:6379/0/session"]
+if Rails.env == "development"
+  Rails.application.config.session_store :redis_store, servers: ["redis://localhost:6379/0/session"]
+else
+  Rails.application.config.session_store :redis_store, servers: [ENV["REDISCLOUD_URL"]]
+end
 
 # :redis_store, {
 #   servers: [
