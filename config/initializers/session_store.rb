@@ -8,6 +8,9 @@ else
   Rails.application.config.session_store :redis_store, servers: [ENV["REDISCLOUD_URL"]]
 end
 
+# find which store in console
+# Rails.application.config.session_store.name
+
 # :redis_store, {
 #   servers: [
 #     {
