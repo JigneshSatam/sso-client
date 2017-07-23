@@ -1,3 +1,5 @@
-You are in currently loggned as <h2> <%= @user_email %> </h2>
+You are in currently loggned as <h2><%= @user.name %></h2> from email: <%= @user.email %>
 
 In <b>SSO-Client-Alpha</b>
+
+<h3><%= link_to("Logout", logout_authentications_path, method: :delete) %></h3>
