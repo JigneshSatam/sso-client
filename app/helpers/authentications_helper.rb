@@ -82,7 +82,7 @@ module AuthenticationsHelper
     end
 
     def redirect_to_sso
-      redirect_to (ENV["SSO_URL"] + "?app=" + ENV["MY_URL"] + "/authentications/login") and return
+      redirect_to (ENV["SSO_URL"] + "?service_url=" + ENV["MY_URL"] + "/authentications/login") and return
     end
 
     def authenticate_or_redirect_to_sso
