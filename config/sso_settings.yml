@@ -1,6 +1,7 @@
 default: &default
   model: "user"
-  identifier: "email"
+  model_uniq_identifier: "email"
+  create_record_on_the_fly: "true"
 
 development:
   <<: *default

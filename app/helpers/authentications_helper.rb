@@ -7,18 +7,10 @@ module AuthenticationsHelper
     def log_in(jwt_token)
       if jwt_token
         # debugger
-        hmac_secret = Rails.configuration.sso_settings["identity_provider_secret_key"]
-        begin
-          decoded_token = JWT.decode jwt_token, hmac_secret, true, { :algorithm => 'HS256' }
-          payload = decoded_token.select{|decoded_part| decoded_part.key?("data") }.last
-          @user_email = payload["data"]["email"] if payload
-          set_session(jwt_token, payload)
-          return true
-        rescue JWT::ExpiredSignature
-          # Handle expired token, e.g. logout user or deny access
-          puts "Token expired thus redirecting to sso"
-          redirect_to_sso
-        end
+        payload = decode_jwt_token(jwt_token)
+        @user_email = payload["data"]["email"] if payload
+        set_session(jwt_token, payload)
+        return true
       else
         redirect_to_sso
       end
@@ -34,17 +26,23 @@ module AuthenticationsHelper
     def current_user
       return @current_user if !@current_user.nil?
       if (user_id = session[:user_id])
-        model = Rails.configuration.sso_settings["model"]
+        model = Rails.configuration.sso_settings["model"].camelcase.constantize
         begin
           logger.debug "@@@@@@@@@@ CURRENT_USER before ==> #{ActiveRecord::Base.connection_pool.stat} @@@@@@@@@@@@@@@@"
-          @current_user ||= model.camelcase.constantize.where(Rails.configuration.sso_settings["identifier"].to_sym => user_id).last
+          @current_user ||= model.where(Rails.configuration.sso_settings["model_uniq_identifier"].to_sym => user_id).last
+          if (@current_user.blank? && Rails.configuration.sso_settings["create_record_on_the_fly"].downcase.to_s == true.to_s)
+            model_record = model.new(Rails.configuration.sso_settings["model_uniq_identifier"].to_sym => user_id)
+            if model_record.valid?
+              @current_user = model_record.reload if model_record.save
+            end
+          end
           logger.debug "@@@@@@@@@@ CURRENT_USER middle ==> #{ActiveRecord::Base.connection_pool.stat} @@@@@@@@@@@@@@@@"
         rescue Exception => e
           logger.debug "@@@@@@@@@@ Thread is sleeping RESCUE #{e} @@@@@@@@@@@@@@@@"
           retry
         ensure
           logger.debug "@@@@@@@@@@ Thread in CURRENT_USER ENSURE @@@@@@@@@@@@@@@@"
-          model.camelcase.constantize.connection.close
+          model.connection.close
           ActiveRecord::Base.connection.close
           logger.debug "@@@@@@@@@@ CURRENT_USER ENSURE ==> #{ActiveRecord::Base.connection_pool.stat} @@@@@@@@@@@@@@@@"
         end
@@ -82,11 +80,33 @@ module AuthenticationsHelper
     end
 
     def redirect_to_sso
-      redirect_to (ENV["SSO_URL"] + "?service_url=" + ENV["MY_URL"] + "/authentications/login") and return
+      token = encode_jwt_token({service_url: ENV["MY_URL"] + "/authentications/login"})
+      redirect_to (ENV["SSO_URL"] + "?token=" + token) and return
     end
 
     def authenticate_or_redirect_to_sso
       redirect_to_sso unless logged_in?
+    end
+
+    def encode_jwt_token(data_hash = nil)
+      # exp = Time.now.to_i + ENV.fetch("EXPIRE_AFTER_SECONDS") { 1.hour }.to_i
+      # payload = { :data => data_hash, :exp => exp }
+      payload = { :data => data_hash }
+      hmac_secret = Rails.configuration.sso_settings["identity_provider_secret_key"]
+      return JWT.encode payload, hmac_secret, 'HS256'
+    end
+
+    def decode_jwt_token(token)
+      hmac_secret = Rails.configuration.sso_settings["identity_provider_secret_key"]
+      begin
+        decoded_token = JWT.decode token, hmac_secret, true, { :algorithm => 'HS256' }
+        payload = decoded_token.select{|decoded_part| decoded_part.key?("data") }.last
+        return payload
+      rescue JWT::ExpiredSignature
+        # Handle expired token, e.g. logout user or deny access
+        puts "Token expired thus redirecting to root_url"
+        redirect_to root_url
+      end
     end
   end
 
