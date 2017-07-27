@@ -6,7 +6,6 @@ module AuthenticationsHelper
   module InstanceMethods
     def log_in(jwt_token)
       if jwt_token
-        # debugger
         payload = decode_jwt_token(jwt_token)
         @user_email = payload["data"]["email"] if payload
         set_session(jwt_token, payload)
@@ -71,7 +70,8 @@ module AuthenticationsHelper
     def clear_session(session_id, jwt_token)
       session[:token_id] = nil
       session[:user_id] = nil
-      Redis.current.del("session:#{session_id}")
+      store = ActionDispatch::Session::RedisStore.new(Rails.application, Rails.application.config.session_options)
+      store.with{|redis| redis.del(session_id)}
       Redis.current.del("jwt:#{jwt_token}")
     end
 
