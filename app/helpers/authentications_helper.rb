@@ -68,11 +68,14 @@ module AuthenticationsHelper
     end
 
     def clear_session(session_id, jwt_token)
+      logger.debug "authentication_helper %% clear_session ====> started <===="
+      store = ActionDispatch::Session::RedisStore.new(Rails.application, Rails.application.config.session_options)
+      number_of_keys_removed = store.with{|redis| redis.del(session_id)}
+      logger.debug "logging_out number_of_keys_removed ====> #{number_of_keys_removed} <===="
+      Redis.current.del("jwt:#{jwt_token}")
       session[:token_id] = nil
       session[:user_id] = nil
-      store = ActionDispatch::Session::RedisStore.new(Rails.application, Rails.application.config.session_options)
-      store.with{|redis| redis.del(session_id)}
-      Redis.current.del("jwt:#{jwt_token}")
+      logger.debug "authentication_helper %% clear_session ====> ended <===="
     end
 
     def logged_in?
