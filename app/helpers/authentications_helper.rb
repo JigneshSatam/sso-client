@@ -72,6 +72,13 @@ module AuthenticationsHelper
       store = ActionDispatch::Session::RedisStore.new(Rails.application, Rails.application.config.session_options)
       number_of_keys_removed = store.with{|redis| redis.del(session_id)}
       logger.debug "logging_out number_of_keys_removed ====> #{number_of_keys_removed} <===="
+      if number_of_keys_removed == 0
+        number_of_keys_removed = Redis.current.del(session_id)
+        if number_of_keys_removed == 0
+          keys = Redis.current.keys("*#{session_id}")
+          Redis.current.del(keys)
+        end
+      end
       Redis.current.del("jwt:#{jwt_token}")
       session[:token_id] = nil
       session[:user_id] = nil
