@@ -84,7 +84,7 @@ module AuthenticationsHelper
 
     def redirect_to_sso
       token = encode_jwt_token({service_url: ENV["MY_URL"] + "/authentications/login"})
-      redirect_to (ENV["SSO_URL"] + "?token=" + token) and return
+      redirect_to (ENV["SSO_URL"] + "?service_token=" + token) and return
     end
 
     def authenticate_or_redirect_to_sso
