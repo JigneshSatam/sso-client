@@ -4,91 +4,6 @@ module AuthenticationsHelper
   end
 
   module InstanceMethods
-    def log_in(jwt_token)
-      if jwt_token
-        payload = decode_jwt_token(jwt_token)
-        @user_email = payload["data"]["email"] if payload
-        set_session(jwt_token, payload)
-        return true
-      else
-        redirect_to_sso
-      end
-    end
-
-    def set_session(jwt_token, payload)
-      Redis.current.set("jwt:#{jwt_token}", session.id)
-      @user_email = payload["data"]["email"] if payload
-      session[:user_id] = @user_email
-      session[:token_id] = jwt_token
-    end
-
-    def current_user
-      return @current_user if !@current_user.nil?
-      if (user_id = session[:user_id])
-        model = Rails.configuration.sso_settings["model"].camelcase.constantize
-        begin
-          logger.debug "@@@@@@@@@@ CURRENT_USER before ==> #{ActiveRecord::Base.connection_pool.stat} @@@@@@@@@@@@@@@@"
-          @current_user ||= model.where(Rails.configuration.sso_settings["model_uniq_identifier"].to_sym => user_id).last
-          if (@current_user.blank? && Rails.configuration.sso_settings["create_record_on_the_fly"].downcase.to_s == true.to_s)
-            model_record = model.new(Rails.configuration.sso_settings["model_uniq_identifier"].to_sym => user_id)
-            if model_record.valid?
-              @current_user = model_record.reload if model_record.save
-            end
-          end
-          logger.debug "@@@@@@@@@@ CURRENT_USER middle ==> #{ActiveRecord::Base.connection_pool.stat} @@@@@@@@@@@@@@@@"
-        rescue Exception => e
-          logger.debug "@@@@@@@@@@ Thread is sleeping RESCUE #{e} @@@@@@@@@@@@@@@@"
-          retry
-        ensure
-          logger.debug "@@@@@@@@@@ Thread in CURRENT_USER ENSURE @@@@@@@@@@@@@@@@"
-          model.connection.close
-          ActiveRecord::Base.connection.close
-          logger.debug "@@@@@@@@@@ CURRENT_USER ENSURE ==> #{ActiveRecord::Base.connection_pool.stat} @@@@@@@@@@@@@@@@"
-        end
-      end
-      return @current_user
-    end
-
-    def log_out(jwt_token = nil)
-      if jwt_token.present?
-        log_out_from_identity_provider(jwt_token)
-      else
-        log_out_from_service_provider
-      end
-    end
-
-    def log_out_from_service_provider
-      jwt_token = session[:token_id]
-      clear_session(session.id, jwt_token)
-    end
-
-    def log_out_from_identity_provider(jwt_token)
-      session_id = Redis.current.get("jwt:#{jwt_token}")
-      clear_session(session_id, jwt_token)
-    end
-
-    def clear_session(session_id, jwt_token)
-      logger.debug "authentication_helper %% clear_session ====> started <===="
-      store = ActionDispatch::Session::RedisStore.new(Rails.application, Rails.application.config.session_options)
-      number_of_keys_removed = store.with{|redis| redis.del(session_id)}
-      logger.debug "logging_out number_of_keys_removed ====> #{number_of_keys_removed} <===="
-      if number_of_keys_removed == 0
-        number_of_keys_removed = Redis.current.del(session_id)
-        if number_of_keys_removed == 0
-          keys = Redis.current.keys("*#{session_id}")
-          Redis.current.del(keys)
-        end
-      end
-      Redis.current.del("jwt:#{jwt_token}")
-      session[:token_id] = nil
-      session[:user_id] = nil
-      logger.debug "authentication_helper %% clear_session ====> ended <===="
-    end
-
-    def logged_in?
-      !current_user.nil?
-    end
-
     def redirect_to_sso
       token = encode_jwt_token({service_url: ENV["MY_URL"] + "/authentications/login"})
       redirect_to (ENV["SSO_URL"] + "?service_token=" + token) and return
@@ -123,6 +38,8 @@ module AuthenticationsHelper
   def self.included(receiver)
     receiver.extend         ClassMethods
     receiver.send :include, InstanceMethods
+    receiver.send :include, ServiceProvider::Login
+    receiver.send :include, ServiceProvider::Logout
   end
 end
 
