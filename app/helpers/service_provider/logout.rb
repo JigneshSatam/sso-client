@@ -6,6 +6,7 @@ module ServiceProvider
 
     module InstanceMethods
       def log_out(jwt_token = nil)
+        sleep(10)
         if jwt_token.present?
           log_out_from_identity_provider(jwt_token)
         else
