@@ -5,24 +5,12 @@ module AuthenticationsHelper
 
   module InstanceMethods
     def redirect_to_sso
-      token = encode_jwt_token({service_url: ENV["MY_URL"] + "/authentications/login"}, ENV.fetch("EXPIRE_AFTER_SECONDS") { 1.hour })
+      token = Token.encode_jwt_token({service_url: ENV["MY_URL"] + "/authentications/login"}, ENV.fetch("EXPIRE_AFTER_SECONDS") { 1.hour })
       redirect_to (ENV["SSO_URL"] + "?service_token=" + token) and return
     end
 
     def authenticate_or_redirect_to_sso
       redirect_to_sso unless logged_in?
-    end
-
-    def encode_jwt_token(data_hash, expire_after = nil)
-      payload = { :data => data_hash }
-      if expire_after.present?
-        exp = Time.now.to_i + expire_after.to_i.minutes.to_i
-        payload.merge!({exp: exp})
-        # exp = Time.now.to_i + ENV.fetch("EXPIRE_AFTER_SECONDS") { 1.hour }.to_i
-        # payload = { :data => data_hash, :exp => exp }
-      end
-      hmac_secret = Rails.configuration.sso_settings["identity_provider_secret_key"]
-      JWT.encode payload, hmac_secret, 'HS256'
     end
 
     def decode_jwt_token(token)
