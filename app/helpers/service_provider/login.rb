@@ -10,6 +10,7 @@ module ServiceProvider
           payload = Token.decode_jwt_token(jwt_token)
           @user_email = payload["data"]["email"] if payload
           set_session(jwt_token, payload)
+          set_session_expire_at
           return true
         else
           redirect_to_sso
@@ -23,7 +24,21 @@ module ServiceProvider
         session[:token_id] = jwt_token
       end
 
+      def set_session_expire_at
+        if session_timeout.present?
+          session[:expire_at] = (Time.now + session_timeout)
+        end
+      end
+
+      def session_expired?
+        return session[:expire_at].present? && Time.now > session[:expire_at]
+      end
+
       def current_user
+        if session_expired?
+          session.delete(:user_id)
+          @current_user = nil
+        end
         return @current_user if !@current_user.nil?
         if (user_id = session[:user_id])
           begin
@@ -45,8 +60,18 @@ module ServiceProvider
             ActiveRecord::Base.connection.close
             logger.debug "@@@@@@@@@@ CURRENT_USER ENSURE ==> #{ActiveRecord::Base.connection_pool.stat} @@@@@@@@@@@@@@@@"
           end
+        elsif (jwt_token = params[:token]).present?
+          payload = Token.decode_jwt_token(jwt_token)
+          @current_user ||= model.find_by(uniq_identifier.to_sym => payload["data"]["email"])
+        end
+        if @current_user.present?
+          set_session_expire_at
         end
         return @current_user
+      end
+
+      def logged_in?
+        !current_user.nil?
       end
     end
 

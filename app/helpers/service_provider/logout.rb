@@ -60,10 +60,6 @@ module ServiceProvider
         session[:user_id] = nil
         logger.debug "authentication_helper %% clear_session ====> ended <===="
       end
-
-      def logged_in?
-        !current_user.nil?
-      end
     end
 
     def self.included(receiver)

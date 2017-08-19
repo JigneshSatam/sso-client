@@ -9,8 +9,12 @@ module AuthenticationsHelper
       redirect_to (ENV["SSO_URL"] + "?service_token=" + token) and return
     end
 
-    def authenticate_or_redirect_to_sso
-      redirect_to_sso unless logged_in?
+    def check_authentication
+      unless logged_in?
+        ErrorPrinter.print_error("Sorry, you need to login before continuing.", "Login required.")
+        flash[:alert] = "Sorry, you need to login before continuing."
+        return redirect_to_sso
+      end
     end
   end
 
@@ -24,5 +28,5 @@ end
 
 class ApplicationController < ActionController::Base
   include AuthenticationsHelper
-  before_action :authenticate_or_redirect_to_sso, except: [:login, :logout]
+  before_action :check_authentication, except: [:login]
 end
