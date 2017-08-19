@@ -7,7 +7,7 @@ module ServiceProvider
     module InstanceMethods
       def log_in(jwt_token)
         if jwt_token
-          payload = decode_jwt_token(jwt_token)
+          payload = Token.decode_jwt_token(jwt_token)
           @user_email = payload["data"]["email"] if payload
           set_session(jwt_token, payload)
           return true
@@ -26,12 +26,11 @@ module ServiceProvider
       def current_user
         return @current_user if !@current_user.nil?
         if (user_id = session[:user_id])
-          model = Rails.configuration.sso_settings["model"].camelcase.constantize
           begin
             logger.debug "@@@@@@@@@@ CURRENT_USER before ==> #{ActiveRecord::Base.connection_pool.stat} @@@@@@@@@@@@@@@@"
-            @current_user ||= model.where(Rails.configuration.sso_settings["model_uniq_identifier"].to_sym => user_id).last
+            @current_user ||= model.where(uniq_identifier.to_sym => user_id).last
             if (@current_user.blank? && Rails.configuration.sso_settings["create_record_on_the_fly"].downcase.to_s == true.to_s)
-              model_record = model.new(Rails.configuration.sso_settings["model_uniq_identifier"].to_sym => user_id)
+              model_record = model.new(uniq_identifier.to_sym => user_id)
               if model_record.valid?
                 @current_user = model_record.reload if model_record.save
               end
@@ -54,6 +53,7 @@ module ServiceProvider
     def self.included(receiver)
       receiver.extend         ClassMethods
       receiver.send :include, InstanceMethods
+      receiver.send :include, Authentication
     end
   end
 end

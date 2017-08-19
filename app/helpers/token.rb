@@ -17,7 +17,7 @@ module Token
       decoded_token = JWT.decode token, hmac_secret, true, { :algorithm => 'HS256' }
       payload = decoded_token.select{|decoded_part| decoded_part.key?("data") }.last
       return payload
-    rescue JWT::ExpiredSignature
+    rescue JWT::ExpiredSignature => e
       # Handle expired token, e.g. logout user or deny access
       puts "Token expired thus redirecting to root_url"
       if response.location.blank?
@@ -27,6 +27,10 @@ module Token
         response.status = 301
         return
       end
+    rescue JWT::VerificationError => e
+      error_msg = "The identity_provider_secret_key in sso_settings.yml should match the identity_provider_secret_key in sso-server/identity-provider sso_settings.yml"
+      ErrorPrinter.print_error(error_msg, "Token verification error")
+      raise e
     end
   end
 

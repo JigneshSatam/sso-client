@@ -12,19 +12,6 @@ module AuthenticationsHelper
     def authenticate_or_redirect_to_sso
       redirect_to_sso unless logged_in?
     end
-
-    def decode_jwt_token(token)
-      hmac_secret = Rails.configuration.sso_settings["identity_provider_secret_key"]
-      begin
-        decoded_token = JWT.decode token, hmac_secret, true, { :algorithm => 'HS256' }
-        payload = decoded_token.select{|decoded_part| decoded_part.key?("data") }.last
-        return payload
-      rescue JWT::ExpiredSignature
-        # Handle expired token, e.g. logout user or deny access
-        puts "Token expired thus redirecting to root_url"
-        redirect_to root_url
-      end
-    end
   end
 
   def self.included(receiver)
