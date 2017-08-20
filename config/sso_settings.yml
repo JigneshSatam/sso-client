@@ -6,6 +6,7 @@ default: &default
 development:
   <<: *default
   identity_provider_secret_key: 'my$ecretK3y'
+  sso_session_timeout: <%= ENV["SSO_SESSION_TIMEOUT"] %>
 
 test:
   <<: *default
@@ -16,3 +17,4 @@ test:
 production:
   <<: *default
   identity_provider_secret_key: 'my$ecretK3y'
+  sso_session_timeout: <%= ENV["SSO_SESSION_TIMEOUT"] %>

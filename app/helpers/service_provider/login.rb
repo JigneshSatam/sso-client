@@ -7,31 +7,45 @@ module ServiceProvider
     module InstanceMethods
       def log_in(jwt_token)
         if jwt_token
-          payload = decode_jwt_token(jwt_token)
-          @user_email = payload["data"]["email"] if payload
-          set_session(jwt_token, payload)
+          payload = Token.decode_jwt_token(jwt_token)
+          set_session(payload) if payload
+          set_session_expire_at
           return true
         else
           redirect_to_sso
         end
       end
 
-      def set_session(jwt_token, payload)
-        Redis.current.set("jwt:#{jwt_token}", session.id)
-        @user_email = payload["data"]["email"] if payload
-        session[:user_id] = @user_email
-        session[:token_id] = jwt_token
+      def set_session(payload)
+        sso_session_id = payload["data"]["session"]
+        uniq_identifier_value = payload["data"]["uniq_identifier"]
+        Redis.current.set("sso_session:#{sso_session_id}", session.id)
+        session[:uniq_identifier] = uniq_identifier_value
+        session[:sso_session_id] = sso_session_id
+      end
+
+      def set_session_expire_at
+        if session_timeout.present?
+          session[:expire_at] = (Time.now + session_timeout)
+        end
+      end
+
+      def session_expired?
+        return session[:expire_at].present? && Time.now > session[:expire_at]
       end
 
       def current_user
+        if session_expired?
+          session.delete(:uniq_identifier)
+          @current_user = nil
+        end
         return @current_user if !@current_user.nil?
-        if (user_id = session[:user_id])
-          model = Rails.configuration.sso_settings["model"].camelcase.constantize
+        if (uniq_identifier_value = session[:uniq_identifier])
           begin
             logger.debug "@@@@@@@@@@ CURRENT_USER before ==> #{ActiveRecord::Base.connection_pool.stat} @@@@@@@@@@@@@@@@"
-            @current_user ||= model.where(Rails.configuration.sso_settings["model_uniq_identifier"].to_sym => user_id).last
+            @current_user ||= model.where(uniq_identifier.to_sym => uniq_identifier_value).last
             if (@current_user.blank? && Rails.configuration.sso_settings["create_record_on_the_fly"].downcase.to_s == true.to_s)
-              model_record = model.new(Rails.configuration.sso_settings["model_uniq_identifier"].to_sym => user_id)
+              model_record = model.new(uniq_identifier.to_sym => uniq_identifier_value)
               if model_record.valid?
                 @current_user = model_record.reload if model_record.save
               end
@@ -46,14 +60,25 @@ module ServiceProvider
             ActiveRecord::Base.connection.close
             logger.debug "@@@@@@@@@@ CURRENT_USER ENSURE ==> #{ActiveRecord::Base.connection_pool.stat} @@@@@@@@@@@@@@@@"
           end
+        elsif (jwt_token = params[:token]).present?
+          payload = Token.decode_jwt_token(jwt_token)
+          @current_user ||= model.find_by(uniq_identifier.to_sym => payload["data"]["uniq_identifier"])
+        end
+        if @current_user.present?
+          set_session_expire_at
         end
         return @current_user
+      end
+
+      def logged_in?
+        !current_user.nil?
       end
     end
 
     def self.included(receiver)
       receiver.extend         ClassMethods
       receiver.send :include, InstanceMethods
+      receiver.send :include, Authentication
     end
   end
 end
