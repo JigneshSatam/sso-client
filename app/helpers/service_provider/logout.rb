@@ -43,7 +43,7 @@ module ServiceProvider
       def log_out_from_identity_provider(jwt_token)
         payload = Token.decode_jwt_token(jwt_token)
         sso_session_id = payload["data"]["session"]
-        session_id = Redis.current.get("sso_session:#{sso_session_id}")
+        session_id = Redis.current.hget("sso_session-#{sso_session_id}", "session_id")
         clear_session(session_id, sso_session_id)
       end
 
@@ -59,7 +59,7 @@ module ServiceProvider
             Redis.current.del(keys)
           end
         end
-        Redis.current.del("sso_session:#{sso_session_id}")
+        Redis.current.del("sso_session-#{sso_session_id}")
         session[:sso_session_id] = nil
         session[:uniq_identifier] = nil
         logger.debug "authentication_helper %% clear_session ====> ended <===="
