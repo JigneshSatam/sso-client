@@ -19,7 +19,8 @@ module ServiceProvider
       def set_session(payload)
         sso_session_id = payload["data"]["session"]
         uniq_identifier_value = payload["data"]["uniq_identifier"]
-        Redis.current.set("sso_session:#{sso_session_id}", session.id)
+        Redis.current.hset("sso_session-#{sso_session_id}", "session_id", session.id)
+        Redis.current.hset("sso_session-#{sso_session_id}", "uniq_identifier", uniq_identifier_value)
         session[:uniq_identifier] = uniq_identifier_value
         session[:sso_session_id] = sso_session_id
       end
@@ -62,7 +63,9 @@ module ServiceProvider
           end
         elsif (jwt_token = params[:token]).present?
           payload = Token.decode_jwt_token(jwt_token)
-          @current_user ||= model.find_by(uniq_identifier.to_sym => payload["data"]["uniq_identifier"])
+          sso_session_id = payload["data"]["session"]
+          uniq_identifier_value = Redis.current.hget("sso_session-#{sso_session_id}", "uniq_identifier")
+          @current_user ||= model.find_by(uniq_identifier.to_sym => uniq_identifier_value)
         end
         if @current_user.present?
           set_session_expire_at
