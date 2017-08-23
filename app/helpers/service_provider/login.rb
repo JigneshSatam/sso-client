@@ -26,6 +26,12 @@ module ServiceProvider
       end
 
       def set_session_expire_at
+        # if session[:last_sync].blank? || ( (sync_time = Time.now) > (session[:last_sync]) )
+        if session[:last_sync].blank? || ( (sync_time = Time.now) > (session[:last_sync] + 10.minutes) )
+          session[:last_sync] = sync_time
+          sso_session_id = session[:sso_session_id]
+          keep_alive_at_identity_provider(sso_session_id) if sso_session_id.present?
+        end
         if session_timeout.present?
           session[:expire_at] = (Time.now + session_timeout)
         end
@@ -75,6 +81,27 @@ module ServiceProvider
 
       def logged_in?
         !current_user.nil?
+      end
+
+      def keep_alive_at_identity_provider(sso_session_id)
+        token = Token.encode_jwt_token({session: sso_session_id}, ENV.fetch("EXPIRE_AFTER_SECONDS") { 1.hour })
+        # make_keep_alive_request(ENV["SSO_URL"], token)
+        Thread.new { make_keep_alive_request(ENV["SSO_URL"], token) }
+      end
+
+      def make_keep_alive_request(url_string, token)
+        require 'net/http'
+        url = URI.parse(url_string)
+        base_url_string = url.query.present? ? url.to_s.split("?" + url.query).first : url.to_s
+        keep_alive_url = URI.parse(base_url_string + "/authentications/keep_alive")
+        params = { :token => token }
+        keep_alive_url.query = URI.encode_www_form(params)
+        res = Net::HTTP.get_response(keep_alive_url)
+        # req = Net::HTTP::Get.new(logout_url.to_s)
+        # res = Net::HTTP.start(logout_url.host, logout_url.port) {|http|
+        #   http.request(req)
+        # }
+        puts res.body
       end
     end
 
