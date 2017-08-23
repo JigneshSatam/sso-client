@@ -26,9 +26,9 @@ module ServiceProvider
       end
 
       def set_session_expire_at
-        # if session[:last_sync].blank? || (session[:last_sync].present? && session[:last_sync] > (Time.now + 10.minutes))
-        if session[:last_sync].blank? || (session[:last_sync].present? && (sync_time = Time.now) > (session[:last_sync]) )
-          session[:last_sync] = Time.now
+        # if session[:last_sync].blank? || ( (sync_time = Time.now) > (session[:last_sync]) )
+        if session[:last_sync].blank? || ( (sync_time = Time.now) > (session[:last_sync] + 10.minutes) )
+          session[:last_sync] = sync_time
           sso_session_id = session[:sso_session_id]
           keep_alive_at_identity_provider(sso_session_id) if sso_session_id.present?
         end
