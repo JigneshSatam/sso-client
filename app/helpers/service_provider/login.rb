@@ -30,8 +30,7 @@ module ServiceProvider
         if session[:last_sync].blank? || (session[:last_sync].present? && (sync_time = Time.now) > (session[:last_sync]) )
           session[:last_sync] = Time.now
           sso_session_id = session[:sso_session_id]
-          uniq_identifier_value = session[:uniq_identifier]
-          keep_alive_at_identity_provider(sso_session_id, uniq_identifier_value)
+          keep_alive_at_identity_provider(sso_session_id) if sso_session_id.present?
         end
         if session_timeout.present?
           session[:expire_at] = (Time.now + session_timeout)
@@ -84,8 +83,8 @@ module ServiceProvider
         !current_user.nil?
       end
 
-      def keep_alive_at_identity_provider(sso_session_id, uniq_identifier_value)
-        token = Token.encode_jwt_token({session: sso_session_id, uniq_identifier: uniq_identifier_value}, ENV.fetch("EXPIRE_AFTER_SECONDS") { 1.hour })
+      def keep_alive_at_identity_provider(sso_session_id)
+        token = Token.encode_jwt_token({session: sso_session_id}, ENV.fetch("EXPIRE_AFTER_SECONDS") { 1.hour })
         # make_keep_alive_request(ENV["SSO_URL"], token)
         Thread.new { make_keep_alive_request(ENV["SSO_URL"], token) }
       end
