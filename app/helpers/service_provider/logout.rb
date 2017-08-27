@@ -49,8 +49,12 @@ module ServiceProvider
 
       def clear_session(session_id, sso_session_id)
         logger.debug "authentication_helper %% clear_session ====> started <===="
+        session[:sso_session_id] = nil
+        session[:uniq_identifier] = nil
+        session.clear
         store = ActionDispatch::Session::RedisStore.new(Rails.application, Rails.application.config.session_options)
-        number_of_keys_removed = store.with{|redis| redis.del(session_id)}
+        redis_client = store.with{|redis| redis }
+        number_of_keys_removed = redis_client.del(session_id)
         logger.debug "logging_out number_of_keys_removed ====> #{number_of_keys_removed} <===="
         if number_of_keys_removed == 0
           number_of_keys_removed = Redis.current.del(session_id)
@@ -60,8 +64,7 @@ module ServiceProvider
           end
         end
         Redis.current.del("sso_session-#{sso_session_id}")
-        session[:sso_session_id] = nil
-        session[:uniq_identifier] = nil
+
         logger.debug "authentication_helper %% clear_session ====> ended <===="
       end
     end
