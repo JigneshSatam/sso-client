@@ -2,6 +2,9 @@ default: &default
   model: "user"
   model_uniq_identifier: "email"
   create_record_on_the_fly: "true"
+  sso_session_timeout: "60"
+  identity_provider_secret_key: 'my$ecretK3y'
+  sso_server: "false"
 
 development:
   <<: *default
@@ -16,5 +19,5 @@ test:
 # instead read values from the environment.
 production:
   <<: *default
-  identity_provider_secret_key: 'my$ecretK3y'
+  # identity_provider_secret_key: <%= ENV["SSO_SECRET_KEY"] %>
   sso_session_timeout: <%= ENV["SSO_SESSION_TIMEOUT"] %>

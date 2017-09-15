@@ -2,4 +2,4 @@ You are in currently loggned as <h2><%= @user.name %></h2> from email: <%= @user
 
 In <b>SSO-Client-Alpha</b>
 
-<h3><%= link_to("Logout", logout_authentications_path, method: :delete) %></h3>
+<h3><%= link_to("Logout", simple_sso.logout_authentications_path, method: :delete) %></h3>

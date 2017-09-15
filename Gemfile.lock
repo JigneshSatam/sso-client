@@ -1,3 +1,11 @@
+GIT
+  remote: https://github.com/JigneshSatam/simple_sso.git
+  revision: bf23d8839a65afeec5995e2a38d0acc4999a1676
+  specs:
+    simple_sso (0.1.0)
+      byebug
+      rails (~> 5.1.2)
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -187,6 +195,7 @@ DEPENDENCIES
   rails (~> 5.1.2)
   redis-rails
   sass-rails (~> 5.0)
+  simple_sso!
   spring
   spring-watcher-listen (~> 2.0.0)
   turbolinks (~> 5)
@@ -195,4 +204,4 @@ DEPENDENCIES
   web-console (>= 3.3.0)
 
 BUNDLED WITH
-   1.14.6
+   1.15.3
